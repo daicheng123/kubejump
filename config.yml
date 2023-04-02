@@ -1,0 +1,64 @@
+# 项目名称, 会用来向Jumpserver注册, 识别而已, 不能重复
+# NAME: {{ Hostname }}
+
+# 启动时绑定的ip, 默认 0.0.0.0
+BIND_HOST: 0.0.0.0
+
+# 监听的SSH端口号, 默认2222
+SSHD_PORT: 2222
+
+# 监听的HTTP/WS端口号，默认5000
+HTTPD_PORT: 5000
+
+# 设置日志级别 [DEBUG, INFO, WARN, ERROR, FATAL, CRITICAL]
+LOG_LEVEL: INFO
+
+# SSH连接超时时间 (default 15 seconds)
+SSH_TIMEOUT: 15
+
+# 语言 [en,zh]
+# LANGUAGE_CODE: zh
+
+# SFTP是否显示隐藏文件
+# SFTP_SHOW_HIDDEN_FILE: false
+
+# 是否复用和用户后端资产已建立的连接(用户不会复用其他用户的连接)
+# REUSE_CONNECTION: true
+
+# 资产加载策略, 可根据资产规模自行调整. 默认异步加载资产, 异步搜索分页; 如果为all, 则资产全部加载, 本地搜索分页.
+# ASSET_LOAD_POLICY:
+
+# zip压缩的最大额度 (单位: M)
+ZIP_MAX_SIZE: 1024M
+
+# zip压缩存放的临时目录 /tmp
+ZIP_TMP_PATH: /tmp
+
+# 向 SSH Client 连接发送心跳的时间间隔 (单位: 秒)，默认为30, 0则表示不发送
+CLIENT_ALIVE_INTERVAL: 30
+
+# 向资产发送心跳包的重试次数，默认为3
+RETRY_ALIVE_COUNT_MAX: 3
+
+# 会话共享使用的类型 [local, redis], 默认local
+SHARE_ROOM_TYPE: local
+
+# Redis配置
+# REDIS_HOST: 127.0.0.1
+# REDIS_PORT: 6379
+# REDIS_PASSWORD:
+# REDIS_CLUSTERS:
+# REDIS_DB_ROOM:
+
+# Mysql配置
+DATABASE_NAME: "kube_jump"
+DATABASE_PORT: 3306
+DATABASE_ADDRESS: "127.0.0.1"
+DATABASE_PASSWORD: "Dc@123"
+DATABASE_USER: "root"
+
+# 是否开启本地转发 (目前仅对 vscode remote ssh 有效果)
+# ENABLE_LOCAL_PORT_FORWARD: false
+
+# 是否开启 针对 vscode 的 remote-ssh 远程开发支持 (前置条件: 必须开启 ENABLE_LOCAL_PORT_FORWARD )
+# ENABLE_VSCODE_SUPPORT: false
