@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	POD_INFORMER_NAME = "pods"
+	POD_INFORMER_NAME       = "pods"
+	NAMESPACE_INFORMER_NAME = "namespaces"
 )
 
 var (
@@ -102,6 +103,8 @@ func NewInformer(informerKind string, handler cache.ResourceEventHandler, client
 	switch informerKind {
 	case POD_INFORMER_NAME:
 		return newPodInformer(handler, client)
+	case NAMESPACE_INFORMER_NAME:
+		return newNamespaceInformer(handler, client)
 	default:
 		return nil
 	}
@@ -112,19 +115,37 @@ type InformerInterface interface {
 	close()
 }
 
-type PodInformer struct {
+type CommonInformer struct {
+	InformerInterface
 	handler      cache.ResourceEventHandler
 	client       *ClientSet
 	informer     cache.Controller
 	informerChan chan struct{}
 }
 
+func (pi *CommonInformer) start() {
+	pi.InformerInterface.start()
+}
+
+func (pi *CommonInformer) close() {
+	close(pi.informerChan)
+}
+
+type PodInformer struct {
+	*CommonInformer
+}
+
 func newPodInformer(handler cache.ResourceEventHandler, cli *ClientSet) *PodInformer {
-	return &PodInformer{
-		handler:      handler,
-		client:       cli,
-		informerChan: make(chan struct{}),
+	var podInformer = new(PodInformer)
+
+	podInformer.CommonInformer = &CommonInformer{
+		InformerInterface: podInformer,
+		handler:           handler,
+		client:            cli,
+		informerChan:      make(chan struct{}),
 	}
+
+	return podInformer
 }
 
 func (pi *PodInformer) start() {
@@ -133,13 +154,31 @@ func (pi *PodInformer) start() {
 
 	_, pi.informer = cache.NewInformer(listWatcher, &corev1.Pod{}, time.Minute*5, pi.handler)
 
-	//if !cache.WaitForCacheSync(pi.informerChan, pi.informer.HasSynced) {
-	//	klog.Errorf("Informer %s ", POD_INFORMER_NAME)
-	//}
-	//
 	pi.informer.Run(pi.informerChan)
 }
 
-func (pi *PodInformer) close() {
-	close(pi.informerChan)
+type NamespaceInformer struct {
+	*CommonInformer
+}
+
+func newNamespaceInformer(handler cache.ResourceEventHandler, cli *ClientSet) *NamespaceInformer {
+	var namespaceInformer = new(NamespaceInformer)
+
+	namespaceInformer.CommonInformer = &CommonInformer{
+		InformerInterface: namespaceInformer,
+		handler:           handler,
+		client:            cli,
+		informerChan:      make(chan struct{}),
+	}
+
+	return namespaceInformer
+}
+
+func (pi *NamespaceInformer) start() {
+	listWatcher := cache.NewListWatchFromClient(
+		pi.client.K8sClientSet.CoreV1().RESTClient(), NAMESPACE_INFORMER_NAME, metav1.NamespaceAll, fields.Everything())
+
+	_, pi.informer = cache.NewInformer(listWatcher, &corev1.Namespace{}, time.Minute*5, pi.handler)
+
+	pi.informer.Run(pi.informerChan)
 }

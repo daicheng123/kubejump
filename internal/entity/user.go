@@ -3,7 +3,6 @@ package entity
 import (
 	"context"
 	"fmt"
-	"gorm.io/gorm"
 )
 
 type UserRepo interface {
@@ -12,7 +11,7 @@ type UserRepo interface {
 }
 
 type User struct {
-	gorm.Model
+	BaseModel
 	//ID       int    `json:"id"`
 	Name     string `json:"name"`
 	Username string `json:"username"`

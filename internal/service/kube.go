@@ -10,7 +10,7 @@ import (
 )
 
 type KubernetesService struct {
-	kubeHandlerServices
+	*kubeHandlerServices
 	clientFactory   *kubernetes.ClientFactory
 	informerFactory *kubernetes.InformerFactory
 }
@@ -21,12 +21,19 @@ func NewKubernetesService() (*KubernetesService, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	handlerServices := &kubeHandlerServices{
+		handlers:     sync.Map{},
+		nsEventChan:  make(chan *nsEvent, 0),
+		podEventChan: make(chan *podEvent, 0),
+	}
+
+	go func() {
+		handlerServices.handlerLoop()
+	}()
+
 	return &KubernetesService{clientFactory: clientFactory, informerFactory: informerFactory,
-		kubeHandlerServices: kubeHandlerServices{
-			handlers:     sync.Map{},
-			nsEventChan:  make(chan *nsEvent, 0),
-			podEventChan: make(chan *podEvent, 0),
-		},
+		kubeHandlerServices: handlerServices,
 	}, err
 }
 

@@ -4,9 +4,11 @@ import (
 	"github.com/daicheng123/kubejump/config"
 	"github.com/daicheng123/kubejump/internal/base/data"
 	"github.com/daicheng123/kubejump/internal/entity/utils"
+	"github.com/daicheng123/kubejump/internal/httpd"
 	"github.com/daicheng123/kubejump/internal/repo"
 	"github.com/daicheng123/kubejump/internal/service"
 	"github.com/daicheng123/kubejump/internal/sshd"
+	"github.com/daicheng123/kubejump/pkg/api"
 	"k8s.io/klog/v2"
 	"os"
 	"os/signal"
@@ -22,21 +24,7 @@ type server struct {
 }
 
 func (s *server) run() {
-	//wait.WaitFor(func(done <-chan struct{}) <-chan struct{} {
-	//
-	//}, )
-	//for {
-	//	if k8sClusterCfgs, err := s.jmsService.ListClusterConfig(); err == nil {
-	//		for _, cfg := range k8sClusterCfgs {
-	//			s.k8sService.AddSyncResourceToStore(kubernetes.POD_INFORMER_NAME, cfg)
-	//
-	//		}
-	//		break
-	//	} else {
-	//		time.Sleep(time.Minute)
-	//	}
-	//
-	//}
+
 }
 
 func NewServer(
@@ -55,11 +43,12 @@ func NewServer(
 
 type JUMP struct {
 	sshdSrv *sshd.Server
+	webSrv  *httpd.Server
 }
 
 func (j *JUMP) Start() {
 
-	//go k.webSrv.Start()
+	go j.webSrv.Start()
 	go j.sshdSrv.Start()
 }
 
@@ -94,9 +83,16 @@ func RunForever(confPath string) {
 	}
 
 	srv := NewServer(jmsService, k8sService, userService)
+
+	// start event task
+	go syncClusterResourcesToStore(srv)
+
+	webSrv := httpd.NewServer(jmsService)
+	api.RegisterWebHandler(webSrv)
 	sshdSrv := sshd.NewSshServer(srv)
 	app := &JUMP{
 		sshdSrv: sshdSrv,
+		webSrv:  webSrv,
 	}
 	app.Start()
 	<-gracefulStop

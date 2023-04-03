@@ -15,6 +15,7 @@ func autoMigrate(db *gorm.DB) (err error) {
 		AutoMigrate(
 			&entity.ClusterConfig{},
 			&entity.User{},
+			&entity.Pod{},
 		)
 	return
 }

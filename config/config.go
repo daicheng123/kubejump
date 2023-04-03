@@ -98,9 +98,10 @@ func getDefaultConfig() Config {
 
 	return Config{
 		Name:                   defaultName,
-		ServerDebug:            false,
+		ServerDebug:            true,
 		BindHost:               "0.0.0.0",
 		SSHPort:                "2222",
+		HTTPPort:               "8081",
 		RootPath:               rootPath,
 		LogLevel:               "info",
 		SSHTimeout:             15,

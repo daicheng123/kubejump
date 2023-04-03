@@ -1,11 +1,14 @@
 package service
 
 import (
-	"fmt"
+	"context"
 	"github.com/daicheng123/kubejump/internal/entity"
+	"github.com/daicheng123/kubejump/pkg/kubernetes/pods"
 	"github.com/daicheng123/kubejump/pkg/utils"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/klog/v2"
 	"sync"
+	"time"
 )
 
 const (
@@ -14,8 +17,10 @@ const (
 	EVENT_TYPE_DELETE = "DELETE"
 )
 
+//kubeHandlerServices  handler kubernetes event
 type kubeHandlerServices struct {
 	handlers     sync.Map
+	podRepo      entity.PodRepo
 	podEventChan chan *podEvent
 	nsEventChan  chan *nsEvent
 }
@@ -51,11 +56,57 @@ func (srv *kubeHandlerServices) delHandler(kind, uk string) {
 	srv.handlers.Delete(srv.buildKey(kind, uk))
 }
 
+func (srv *kubeHandlerServices) applyPodResource(ctx context.Context, event *podEvent) error {
+	return srv.podRepo.CreateOrUpdatePod(ctx, event.Pod)
+}
+
+func (srv *kubeHandlerServices) deletePodResource(event *podEvent) error {
+	return nil
+}
+
+func (srv *kubeHandlerServices) applyNsResource(event *nsEvent) error {
+	return nil
+
+}
+
+func (srv *kubeHandlerServices) deleteNsResource(event *nsEvent) error {
+	return nil
+}
+
 func (srv *kubeHandlerServices) handlerLoop() {
 	for {
 		select {
 		case pe := <-srv.podEventChan:
-			fmt.Println(pe.PodName)
+			if pe.eventType == EVENT_TYPE_ADD || pe.eventType == EVENT_TYPE_UPDATE {
+
+				go utils.RunSafe(func() error {
+					klog.Infof("add or update pod %s to storage", pe.PodName)
+					return srv.applyPodResource(context.Background(), pe)
+				}, "sync pod add or update event failed.")
+			} else if pe.eventType == EVENT_TYPE_DELETE {
+
+				go utils.RunSafe(func() error {
+					klog.Infof("delete pod %s to storage", pe.PodName)
+					return srv.deletePodResource(pe)
+				}, "sync pod delete event failed.")
+			}
+		case ne := <-srv.nsEventChan:
+			if ne.eventType == EVENT_TYPE_ADD || ne.eventType == EVENT_TYPE_UPDATE {
+
+				go utils.RunSafe(func() error {
+					klog.Infof("add or update ns %s to storage", ne.NamespaceName)
+					return srv.applyNsResource(ne)
+				}, "sync namespace add or update  event failed.")
+			} else if ne.eventType == EVENT_TYPE_DELETE {
+
+				go utils.RunSafe(func() error {
+					klog.Infof("delete ns %s to storage", ne.NamespaceName)
+					return srv.deleteNsResource(ne)
+				}, "sync namespace delete  event failed.")
+
+			}
+		case <-time.After(time.Minute * 5):
+			klog.Info("No resource synchronization event occurred in the last 5 minutes...")
 		}
 	}
 }
@@ -79,12 +130,13 @@ type kubeHandler struct {
 
 func (kh *kubeHandler) sendEvent(obj interface{}, eventType string) {
 	if pod, ok := obj.(*v1.Pod); ok {
-		//pod.OwnerReferences
 		kh.podsChan <- &podEvent{
 			Pod: &entity.Pod{
 				PodName:        pod.Name,
+				Namespace:      pod.Namespace,
 				ClusterUniqKey: kh.clusterUniqKey,
 				ResourceKind:   kh.resourceKind,
+				Status:         pods.PodStatus(pod),
 			},
 			eventType: eventType,
 		}
