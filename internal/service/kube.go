@@ -15,7 +15,7 @@ type KubernetesService struct {
 	informerFactory *kubernetes.InformerFactory
 }
 
-func NewKubernetesService() (*KubernetesService, error) {
+func NewKubernetesService(podRepo entity.PodRepo, nsRepo entity.NamespaceRepo) (*KubernetesService, error) {
 	clientFactory, err := kubernetes.GetClientFactory()
 	informerFactory := kubernetes.GetInformerFactory(clientFactory)
 	if err != nil {
@@ -23,13 +23,15 @@ func NewKubernetesService() (*KubernetesService, error) {
 	}
 
 	handlerServices := &kubeHandlerServices{
+		podRepo:      podRepo,
+		nsRepo:       nsRepo,
 		handlers:     sync.Map{},
 		nsEventChan:  make(chan *nsEvent, 0),
 		podEventChan: make(chan *podEvent, 0),
 	}
 
 	go func() {
-		handlerServices.handlerLoop()
+		handlerServices.handlerLoop(context.Background())
 	}()
 
 	return &KubernetesService{clientFactory: clientFactory, informerFactory: informerFactory,
@@ -38,14 +40,14 @@ func NewKubernetesService() (*KubernetesService, error) {
 }
 
 func (ks *KubernetesService) AddSyncResourceToStore(informerKind string, kconfig *entity.ClusterConfig) (err error) {
-	handler := ks.kubeHandlerServices.newHandler(informerKind, kconfig.ClientUniqKey())
+	handler := ks.kubeHandlerServices.newHandler(informerKind, kconfig.ID)
 	ks.informerFactory, err = ks.informerFactory.AddInformer(informerKind, handler, kconfig)
 	return err
 }
 
 func (ks *KubernetesService) DelSyncResourceToStore(informerKind string, kconfig *entity.ClusterConfig) {
 	ks.informerFactory = ks.informerFactory.DelInformer(informerKind, kconfig)
-	ks.kubeHandlerServices.delHandler(informerKind, kconfig.ClientUniqKey())
+	ks.kubeHandlerServices.delHandler(informerKind, kconfig.ID)
 }
 
 func (ks *KubernetesService) ReloadSyncResourceToStore(informerKind string, kconfig *entity.ClusterConfig) error {

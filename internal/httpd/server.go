@@ -9,7 +9,6 @@ import (
 )
 
 type Server struct {
-	//broadCaster *broadcaster
 	Srv        *http.Server
 	jmsService *service.JMService
 	//JmsService  *service.JMService

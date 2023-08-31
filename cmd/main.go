@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"github.com/daicheng123/kubejump/cmd/app"
 )
 
 var (
@@ -17,5 +16,22 @@ func init() {
 
 func main() {
 	flag.Parse()
-	app.RunForever(cfgFile)
+	//var stopChan = make(chan struct{})
+	//app.RunForever(cfgFile)
+
+	//go wait.NonSlidingUntil(func() {
+	//	fmt.Println("hello")
+	//}, time.Second, stopChan)
+	//wait.Until(func() {
+	//	fmt.Println("world")
+	//}, time.Second, stopChan)
+
+	//labels.Parse("app=nginx")
+
+	//fmt.Println(labels.FormatLabels(map[string]string{"app": "nginx"}))
+	//fmt.Println(labels.Parse(labels.FormatLabels(map[string]string{"app": "nginx"})))
+	//labels.SelectorFromSet()
+
+	//fmt.Println())
+
 }

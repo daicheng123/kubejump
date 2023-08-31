@@ -93,3 +93,7 @@ func hasPodReadyCondition(conditions []corev1.PodCondition) bool {
 	}
 	return false
 }
+
+func GetContainerWithRunning() {
+
+}

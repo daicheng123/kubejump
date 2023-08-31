@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"github.com/daicheng123/kubejump/internal/entity"
 	"github.com/spf13/viper"
 	"k8s.io/klog/v2"
 	"os"
@@ -33,17 +34,23 @@ type Config struct {
 
 	LogLevel string `mapstructure:"LOG_LEVEL"`
 
+	ClientAliveInterval int `mapstructure:"CLIENT_ALIVE_INTERVAL"`
+
 	DatabaseName     string `mapstructure:"DATABASE_NAME"`
 	DatabasePort     int    `mapstructure:"DATABASE_PORT"`
 	DatabaseAddress  string `mapstructure:"DATABASE_ADDRESS"`
 	DatabasePassword string `mapstructure:"DATABASE_PASSWORD"`
 	DatabaseUser     string `mapstructure:"DATABASE_USER"`
 
+	AssetLoadPolicy string `mapstructure:"ASSET_LOAD_POLICY"` // all
+
 	EnableLocalPortForward bool `mapstructure:"ENABLE_LOCAL_PORT_FORWARD"`
 
 	RootPath       string
 	LogDirPath     string
 	LocalCachePath string
+
+	TerminalConf *entity.TerminalConfig
 
 	//DataFolderPath    string
 	//KeyFolderPath     string
@@ -112,6 +119,15 @@ func getDefaultConfig() Config {
 		DatabasePort:           3306,
 		DatabasePassword:       "Dc@123",
 		LocalCachePath:         localCachePath,
+		AssetLoadPolicy:        "all",
+
+		ClientAliveInterval: 120,
+		// terminal 终端配置
+		TerminalConf: &entity.TerminalConfig{
+			AssetListPageSize: "10",
+			AssetListSortBy:   "ClusterName",
+			MaxIdleTime:       60,
+		},
 	}
 }
 

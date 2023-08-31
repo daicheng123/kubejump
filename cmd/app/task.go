@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"github.com/daicheng123/kubejump/internal/entity"
 	"github.com/daicheng123/kubejump/pkg/kubernetes"
 	"k8s.io/klog/v2"
@@ -8,7 +9,7 @@ import (
 
 // syncClusterResourcesToStore 同步各个已配置集群信息
 func syncClusterResourcesToStore(server *server) {
-	clusterConfigs, err := server.jmsService.ListClusterConfig()
+	clusterConfigs, err := server.jmsService.ListClusterConfig(context.Background())
 	if err != nil {
 		klog.Errorf("[sync resource] query k8s cluster configs failed, err:[%s]", err.Error())
 	}

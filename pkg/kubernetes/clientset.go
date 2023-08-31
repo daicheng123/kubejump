@@ -28,14 +28,19 @@ func (cs *ClientSet) initClientSet(masterUrl, caData, bearerToken string) error 
 }
 
 func (cs *ClientSet) Config(masterUrl, caData, bearerToken string) *rest.Config {
-	tlsClientConfig := rest.TLSClientConfig{CAData: []byte(caData)}
+	//tlsClientConfig := rest.TLSClientConfig{CAData: []byte(caData)}
 	cs.restConfig = &rest.Config{
-		Host:            masterUrl,
-		TLSClientConfig: tlsClientConfig,
-		BearerToken:     bearerToken,
-		QPS:             100,
-		Burst:           150,
+		Host: masterUrl,
+		//TLSClientConfig: tlsClientConfig,
+		//BearerToken:     bearerToken,
+		QPS:   100,
+		Burst: 150,
 	}
+	cs.restConfig.Insecure = false
 
+	return cs.restConfig
+}
+
+func (cs *ClientSet) GetConfig() *rest.Config {
 	return cs.restConfig
 }

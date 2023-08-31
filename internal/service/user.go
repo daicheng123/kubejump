@@ -18,10 +18,13 @@ func NewUserService(userRepo entity.UserRepo) *UserService {
 func (us *UserService) GetUserInfoByName(ctx context.Context, username string) (*entity.User, error) {
 	var user = &entity.User{}
 	err := us.userRepo.GetInfoByName(ctx, username, user)
-
 	if err != nil {
 		return nil, err
 	}
-
 	return user, err
 }
+
+//func (us *UserService) ApplyUser(ctx context.Context, user *entity.User) (*entity.User, error) {
+//
+//	//us.userRepo
+//}

@@ -70,12 +70,15 @@ func RunForever(confPath string) {
 		klog.Fatalf("init db schema failed, err:[%s]", err.Error())
 	}
 
-	// repo层
+	// repo
 	userRepo := repo.NewUserRepo()
 	clusterRepo := repo.NewClusterRepo()
+	podRepo := repo.NewPodRepo()
+	nsRepo := repo.NewNamespaceRepo()
 
-	k8sService, err := service.NewKubernetesService()
-	jmsService := service.NewJMService(clusterRepo, userRepo)
+	// service
+	k8sService, err := service.NewKubernetesService(podRepo, nsRepo)
+	jmsService := service.NewJMService(clusterRepo, userRepo, podRepo)
 	userService := service.NewUserService(userRepo)
 
 	if err != nil {

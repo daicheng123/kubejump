@@ -15,6 +15,8 @@ const (
 
 	SeparatorATSign   = "@"
 	SeparatorHashMark = "#"
+
+	tokenPrefix = "JUMP-"
 )
 
 type LoginAssetReq struct {
@@ -35,20 +37,19 @@ func (lr *LoginAssetReq) Authenticate(password string) bool {
 type SSHAuthFunc func(ctx ssh.Context, password, publicKey string) (res bool)
 
 func SSHPasswordAndPublicKeyAuth(userService *service.UserService) SSHAuthFunc {
+
 	return func(ctx ssh.Context, password, publicKey string) (res bool) {
-
-		//user, err := userService.GetUserInfoByName(ctx, ctx.User())
-		//if err != nil {
-		//	klog.Error("fetch userinfo failed, err:[%s]", err.Error())
-		//	return false, err
-		//}
-
 		remoteAddr, _, _ := net.SplitHostPort(ctx.RemoteAddr().String())
-		if req, ok := parseLoginReq(ctx); ok {
+
+		authMethod := "publickey"
+		if password != "" {
+			authMethod = "password"
+		}
+
+		if req, ok := parseLoginReq(userService, ctx); ok {
 			if req.IsToken() && req.Authenticate(password) {
 				ctx.SetValue(ContextKeyUser, req.Info.User)
-				klog.Infof("SSH conn[%s] %s for %s from %s", ctx.SessionID(),
-					actionAccepted, ctx.User(), remoteAddr)
+				klog.Infof("SSH conn[%s] authenticating user %s %s from %s", ctx.SessionID(), ctx.User(), authMethod, remoteAddr)
 				return true
 			}
 		}
@@ -56,13 +57,13 @@ func SSHPasswordAndPublicKeyAuth(userService *service.UserService) SSHAuthFunc {
 	}
 }
 
-func parseLoginReq(ctx ssh.Context) (*LoginAssetReq, bool) {
+func parseLoginReq(userService *service.UserService, ctx ssh.Context) (*LoginAssetReq, bool) {
 	if req, ok := ctx.Value(ContextKeyDirectLoginFormat).(*LoginAssetReq); ok {
 		return req, true
 	}
 
-	if req, ok := parseUsernameFormatReq(ctx); ok {
-		ctx.SetValue(ContextKeyDirectLoginFormat, req)
+	if req, ok := parseJMSTokenLoginReq(userService, ctx); ok {
+		//ctx.SetValue(ContextKeyDirectLoginFormat, req)
 		return req, true
 	}
 	return nil, false
@@ -95,4 +96,38 @@ func parseUserFormatBySeparator(s, Separator string) (LoginAssetReq, bool) {
 		AssetInfo:   authInfos[2],
 	}
 	return req, true
+}
+
+func parseJMSTokenLoginReq(userService *service.UserService, ctx ssh.Context) (*LoginAssetReq, bool) {
+	if userInfo, err := userService.GetUserInfoByName(ctx, ctx.User()); err == nil {
+		var assetReq = &LoginAssetReq{
+			Username:    userInfo.Username,
+			SysUserInfo: userInfo.Name,
+			Info: &entity.ConnectTokenInfo{
+				User:   userInfo,
+				Secret: userInfo.Password,
+			},
+		}
+		return assetReq, true
+	} else {
+		klog.Errorf("Check user token %s failed: %s", ctx.User(), err)
+	}
+	return nil, false
+}
+
+func parsePasswordOrPublicKeyLoginReq(userService *service.UserService, ctx ssh.Context) (*LoginAssetReq, bool) {
+	if userInfo, err := userService.GetUserInfoByName(ctx, ctx.User()); err == nil {
+		var assetReq = &LoginAssetReq{
+			Username:    userInfo.Username,
+			SysUserInfo: userInfo.Name,
+			Info: &entity.ConnectTokenInfo{
+				User:   userInfo,
+				Secret: userInfo.Password,
+			},
+		}
+		return assetReq, true
+	} else {
+		klog.Errorf("Check user token %s failed: %s", ctx.User(), err)
+	}
+	return nil, false
 }

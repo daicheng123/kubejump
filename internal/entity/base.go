@@ -6,7 +6,7 @@ import (
 )
 
 type BaseModel struct {
-	ID        uint `gorm:"primarykey;comment:'自增编号'" json:"id,omitempty"`
+	ID        uint `gorm:"primarykey" json:"id,omitempty"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`

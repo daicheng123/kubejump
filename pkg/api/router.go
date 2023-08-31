@@ -31,6 +31,8 @@ func RegisterWebHandler(handler *httpd.Server) {
 
 	jumpGroup.Handle(http.MethodPost, "k8s_cluster", handler.ApplyK8sCluster)
 
+	jumpGroup.Handle(http.MethodPost, "user", handler.ApplyK8sCluster)
+
 	conf := config.GetConf()
 	addr := net.JoinHostPort(conf.BindHost, conf.HTTPPort)
 

@@ -5,10 +5,15 @@ import (
 	"fmt"
 	"k8s.io/apimachinery/pkg/util/json"
 	"reflect"
+	"strings"
+)
+
+const (
+	httpPrefix = "http://"
 )
 
 type ClusterRepo interface {
-	ListClustersByStatus(isActive bool) ([]*ClusterConfig, error)
+	ListClustersByStatus(ctx context.Context, isActive bool) ([]*ClusterConfig, error)
 	GetClustersInfo(filter, result *ClusterConfig) error
 	CreateCluster(ctx context.Context, cluster *ClusterConfig) error
 	UpdateCluster(ctx context.Context, cluster *ClusterConfig) error
@@ -31,11 +36,22 @@ type ClusterConfig struct {
 }
 
 func (c *ClusterConfig) ClientUniqKey() string {
+	c.masterUrl()
 	return fmt.Sprintf("%s_%s_%d", c.ClusterName, c.MasterUrl, c.ConfigVersion)
 }
 
 func (c *ClusterConfig) OldClientUniqKey() string {
+	c.masterUrl()
 	return fmt.Sprintf("%s_%s_%d", c.ClusterName, c.MasterUrl, c.ConfigVersion-1)
+}
+
+func (c *ClusterConfig) masterUrl() {
+	if strings.HasPrefix(c.MasterUrl, httpPrefix) {
+		ss := strings.Split(c.MasterUrl, "//")
+		if len(ss) >= 2 {
+			c.MasterUrl = strings.Join(ss[1:], "")
+		}
+	}
 }
 
 func (c *ClusterConfig) TableName() string {
@@ -55,26 +71,53 @@ func (c *ClusterConfig) IsEmpty() bool {
 	return reflect.DeepEqual(c, &ClusterConfig{})
 }
 
+type NamespaceRepo interface {
+	CreateOrUpdateNS(_ context.Context, ns *Namespace) error
+	DeleteNSByName(_ context.Context, name, uniqKey string) error
+}
 type Namespace struct {
-	NamespaceName  string
-	ClusterUniqKey string
-	ResourceKind   string
+	BaseModel
+	NamespaceName  string `gorm:"not null;type:varchar(128);uniqueIndex:idx_namespace_cluster_uniq_key"`
+	ClusterUniqKey string `gorm:"type:varchar(256);not null;uniqueIndex:idx_namespace_cluster_uniq_key"`
+	ResourceKind   string `gorm:"-"`
+}
+
+func (c *Namespace) TableName() string {
+	return "namespace_info"
 }
 
 type PodRepo interface {
-	AddPod(ctx context.Context, pod *Pod) error
 	CreateOrUpdatePod(_ context.Context, pod *Pod) error
+	DeletePodByNameAndNamespace(_ context.Context, name, ns string, id uint) error
+	ListPodsWithPreLoadCluster(_ context.Context, filter *Pod, sortBy string) ([]*Pod, error)
+	PreloadPods(_ context.Context, filter *Pod, reqParam *PaginationParam) ([]*Pod, error)
+	CountPods(_ context.Context, filter *Pod, reqParam *PaginationParam) (int, error)
 }
 
 type Pod struct {
 	BaseModel
-	PodName        string `gorm:"not null;type:varchar(256);unique_index:idx_namespace_pod_name"`
-	Namespace      string `gorm:"not null;type:varchar(256);unique_index:idx_namespace_pod_name"`
-	Status         string `gorm:"type:varchar(28);not null"`
-	ClusterUniqKey string `gorm:"type:varchar(256);not null"`
-	ResourceKind   string `gorm:"-"`
+	PodName      string         `gorm:"not null;type:varchar(256);uniqueIndex:idx_namespace_pod_name_cluster_ref"`
+	Namespace    string         `gorm:"not null;type:varchar(256);uniqueIndex:idx_namespace_pod_name_cluster_ref"`
+	PodIP        string         `gorm:"pod_ip;varchar(15)"`
+	Status       string         `gorm:"type:varchar(28);not null"`
+	ClusterRef   uint           `gorm:"not null;uniqueIndex:idx_namespace_pod_name_cluster_ref"`
+	Cluster      *ClusterConfig `gorm:"foreignKey:ClusterRef"`
+	Containers   []*Container   `gorm:"foreignKey:PodRef;"`
+	ResourceKind string         `gorm:"-"`
 }
 
 func (c *Pod) TableName() string {
-	return "pods"
+	return "pod_info"
+}
+
+type Container struct {
+	BaseModel
+	ContainerName string `gorm:"not null;type:varchar(256)"`
+	ContainerIP   string `gorm:"not null;type:varchar(256)"`
+	Status        string `gorm:"not null;type:varchar(28)"`
+	PodRef        uint
+}
+
+func (c *Container) TableName() string {
+	return "container_info"
 }

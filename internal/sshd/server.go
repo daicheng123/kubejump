@@ -45,9 +45,7 @@ func NewSshServer(handler SSHHandler) *Server {
 		//LocalPortForwardingCallback: func(ctx ssh.Context, destinationHost string, destinationPort uint32) bool {
 		//	return handler.LocalPortForwardingPermission(ctx, destinationHost, destinationPort)
 		//},
-		PasswordHandler: func(ctx ssh.Context, password string) bool {
-			return password == "secret"
-		},
+		PasswordHandler: handler.PasswordAuth,
 
 		HostSigners: []ssh.Signer{handler.GetSSHSigner()},
 

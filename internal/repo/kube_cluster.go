@@ -3,7 +3,6 @@ package repo
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/daicheng123/kubejump/internal/base/data"
 	"github.com/daicheng123/kubejump/internal/entity"
 	"gorm.io/gorm"
@@ -15,7 +14,7 @@ type ClusterRepo struct {
 	data *data.Data
 }
 
-func (cr *ClusterRepo) ListClustersByStatus(isActive bool) ([]*entity.ClusterConfig, error) {
+func (cr *ClusterRepo) ListClustersByStatus(_ context.Context, isActive bool) ([]*entity.ClusterConfig, error) {
 
 	filter := &entity.ClusterConfig{
 		Activate: isActive,
@@ -41,12 +40,10 @@ func (cr *ClusterRepo) UpdateCluster(_ context.Context, cluster *entity.ClusterC
 
 func (cr *ClusterRepo) CreateCluster(_ context.Context, cluster *entity.ClusterConfig) error {
 	db := cr.data.DB.Session(&gorm.Session{}).Create(cluster)
-	fmt.Println(db.Error, "hello world")
 	return db.Error
 }
 func NewClusterRepo() entity.ClusterRepo {
 	return &ClusterRepo{
 		data: data.DefaultData,
 	}
-
 }

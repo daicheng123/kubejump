@@ -3,20 +3,21 @@ package service
 import (
 	"context"
 	"github.com/daicheng123/kubejump/internal/entity"
+	"github.com/daicheng123/kubejump/pkg/utils"
 	jsonpatch "github.com/evanphx/json-patch"
 )
 
 type JMService struct {
 	clusterRepo entity.ClusterRepo
+	podRepo     entity.PodRepo
 	userRepo    entity.UserRepo
 }
 
-func NewJMService(
-	clusterRepo entity.ClusterRepo,
-	userRepo entity.UserRepo) *JMService {
+func NewJMService(clusterRepo entity.ClusterRepo, userRepo entity.UserRepo, podRepo entity.PodRepo) *JMService {
 	return &JMService{
 		clusterRepo: clusterRepo,
 		userRepo:    userRepo,
+		podRepo:     podRepo,
 	}
 }
 
@@ -32,11 +33,29 @@ func (jms *JMService) GetKubernetesCfg(id int) (result *entity.ClusterConfig, er
 	return
 }
 
-func (jms *JMService) ListClusterConfig() ([]*entity.ClusterConfig, error) {
-	return jms.clusterRepo.ListClustersByStatus(true)
+func (jms *JMService) ListClusterConfig(ctx context.Context) ([]*entity.ClusterConfig, error) {
+	return jms.clusterRepo.ListClustersByStatus(ctx, true)
 }
 
-// ApplyK8sCluster create or update kubernetes cluster
+func (jms *JMService) ListAssetByIP(ctx context.Context, podIP string) ([]*entity.Asset, error) {
+
+	return nil, nil
+}
+
+func (jms *JMService) ListPodAsset(ctx context.Context, podIP string) ([]entity.Asset, error) {
+	filter := &entity.Pod{
+		PodIP: podIP,
+	}
+
+	sortBy := "cluster_ref desc"
+	podList, err := jms.podRepo.ListPodsWithPreLoadCluster(ctx, filter, sortBy)
+	if err != nil {
+		return nil, err
+	}
+	return utils.PodsToJumpAssets(podList), err
+}
+
+// ApplyK8sCluster create or update kubernetes cluster object
 func (jms *JMService) ApplyK8sCluster(ctx context.Context, cluster *entity.ClusterConfig) (*entity.ClusterConfig, error) {
 	var (
 		err    error
