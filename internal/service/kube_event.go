@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/daicheng123/kubejump/internal/entity"
 	"github.com/daicheng123/kubejump/pkg/kubernetes/pods"
-	"github.com/daicheng123/kubejump/pkg/utils"
 	"github.com/toolkits/pkg/concurrent/semaphore"
 	"github.com/toolkits/pkg/container/list"
+	"github.com/toolkits/pkg/retry"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
 	"sync"
@@ -15,9 +15,11 @@ import (
 )
 
 const (
-	EVENT_TYPE_ADD    = "ADD"
-	EVENT_TYPE_UPDATE = "UPDATE"
-	EVENT_TYPE_DELETE = "DELETE"
+	EVENT_TYPE_ADD           = "ADD"
+	EVENT_TYPE_UPDATE        = "UPDATE"
+	EVENT_TYPE_DELETE        = "DELETE"
+	DEFAULT_RETRIES          = 3
+	DEFAULT_RETRIES_INTERVAL = time.Millisecond * 500
 )
 
 // kubeHandlerServices  handler kubernetes event
@@ -110,30 +112,36 @@ func (srv *kubeHandlerServices) loopHandler(ctx context.Context, events []interf
 }
 
 func (srv *kubeHandlerServices) handlePod(ctx context.Context, pe *podEvent) {
+	var err error
 	if pe.eventType != EVENT_TYPE_DELETE {
-		action := func() error {
+		if err = retry.Retry(DEFAULT_RETRIES, DEFAULT_RETRIES_INTERVAL, func() error {
 			return srv.applyPodResource(ctx, pe)
+		}); err != nil {
+			klog.Errorf("sync pod add or update event failed, err: %s", err.Error())
 		}
-		utils.RunSafe(action, "sync pod add or update event failed.")
-	} else {
-		action := func() error {
-			return srv.deletePodResource(ctx, pe)
-		}
-		utils.RunSafe(action, "sync pod delete event failed.")
+	}
+
+	if err = retry.Retry(DEFAULT_RETRIES, DEFAULT_RETRIES_INTERVAL, func() error {
+		return srv.deletePodResource(ctx, pe)
+	}); err != nil {
+		klog.Errorf("sync pod delete event failed, err: %s", err.Error())
 	}
 }
 
 func (srv *kubeHandlerServices) handleNamespace(ctx context.Context, ne *nsEvent) {
+	var err error
 	if ne.eventType != EVENT_TYPE_DELETE {
-		action := func() error {
+		if err = retry.Retry(DEFAULT_RETRIES, DEFAULT_RETRIES_INTERVAL, func() error {
 			return srv.applyNsResource(ctx, ne)
+		}); err != nil {
+			klog.Errorf("sync namespace add or update event failed, err: %s", err.Error())
 		}
-		utils.RunSafe(action, "sync namespace add or update event failed.")
-	} else {
-		action := func() error {
-			return srv.deleteNsResource(ctx, ne)
-		}
-		utils.RunSafe(action, "sync namespace delete event failed.")
+	}
+
+	if err = retry.Retry(DEFAULT_RETRIES, DEFAULT_RETRIES_INTERVAL, func() error {
+		return srv.deleteNsResource(ctx, ne)
+	}); err != nil {
+		klog.Errorf("sync pod delete event failed, err: %s", err.Error())
 	}
 }
 
