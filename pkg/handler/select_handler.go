@@ -375,7 +375,7 @@ func (u *UserSelectHandler) Proxy(target entity.Asset) {
 		_, _ = u.h.term.Write([]byte(msg))
 		return
 	}
-	u.proxyAsset(asset)
+	//u.proxyAsset(asset)
 
 	//lang := i18n.NewLang(u.h.i18nLang)
 	//switch u.currentType {

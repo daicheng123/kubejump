@@ -88,7 +88,7 @@ func newDB() (db *gorm.DB, err error) {
 	})
 
 	if err != nil {
-		klog.Errorf("create database connection failed, err:[%s]", err.Error())
+		klog.Errorf("open database connection failed, err:[%s]", err.Error())
 		return
 	}
 	sqlDB, err := db.DB()

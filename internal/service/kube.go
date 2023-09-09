@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/daicheng123/kubejump/internal/entity"
 	"github.com/daicheng123/kubejump/pkg/kubernetes"
+	"github.com/toolkits/pkg/container/list"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sync"
@@ -23,15 +24,15 @@ func NewKubernetesService(podRepo entity.PodRepo, nsRepo entity.NamespaceRepo) (
 	}
 
 	handlerServices := &kubeHandlerServices{
-		podRepo:      podRepo,
-		nsRepo:       nsRepo,
-		handlers:     sync.Map{},
-		nsEventChan:  make(chan *nsEvent, 0),
-		podEventChan: make(chan *podEvent, 0),
+		podRepo:          podRepo,
+		eventConcurrency: 10,
+		nsRepo:           nsRepo,
+		handlers:         sync.Map{},
+		eventQueue:       list.NewSafeListLimited(2000),
 	}
 
 	go func() {
-		handlerServices.handlerLoop(context.Background())
+		handlerServices.LoopHandler(context.Background())
 	}()
 
 	return &KubernetesService{clientFactory: clientFactory, informerFactory: informerFactory,

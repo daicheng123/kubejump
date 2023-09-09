@@ -24,27 +24,27 @@ func GetConf() Config {
 }
 
 type Config struct {
-	Name        string `mapstructure:"NAME"`
-	ServerDebug bool   `mapstructure:"SERVER_DEBUG"`
+	Name        string `mapstructure:"name"`
+	ServerDebug bool   `mapstructure:"server_debug"`
 
-	BindHost   string `mapstructure:"BIND_HOST"`
-	SSHPort    string `mapstructure:"SSHD_PORT"`
-	HTTPPort   string `mapstructure:"HTTPD_PORT"`
-	SSHTimeout int    `mapstructure:"SSH_TIMEOUT"`
+	BindHost   string `mapstructure:"bind_host"`
+	SSHPort    string `mapstructure:"ssh_port"`
+	HTTPPort   string `mapstructure:"httpd_port"`
+	SSHTimeout int    `mapstructure:"ssh_timeout"`
 
-	LogLevel string `mapstructure:"LOG_LEVEL"`
+	LogLevel string `mapstructure:"log_level"`
 
 	ClientAliveInterval int `mapstructure:"CLIENT_ALIVE_INTERVAL"`
 
-	DatabaseName     string `mapstructure:"DATABASE_NAME"`
-	DatabasePort     int    `mapstructure:"DATABASE_PORT"`
-	DatabaseAddress  string `mapstructure:"DATABASE_ADDRESS"`
-	DatabasePassword string `mapstructure:"DATABASE_PASSWORD"`
-	DatabaseUser     string `mapstructure:"DATABASE_USER"`
+	DatabaseName     string `mapstructure:"database_name"`
+	DatabasePort     int    `mapstructure:"database_port"`
+	DatabaseAddress  string `mapstructure:"database_address"`
+	DatabasePassword string `mapstructure:"database_password"`
+	DatabaseUser     string `mapstructure:"database_user"`
 
-	AssetLoadPolicy string `mapstructure:"ASSET_LOAD_POLICY"` // all
+	AssetLoadPolicy string `mapstructure:"asset_load_policy"` // all
 
-	EnableLocalPortForward bool `mapstructure:"ENABLE_LOCAL_PORT_FORWARD"`
+	EnableLocalPortForward bool `mapstructure:"enable_local_port_forward"`
 
 	RootPath       string
 	LogDirPath     string
@@ -113,11 +113,11 @@ func getDefaultConfig() Config {
 		LogLevel:               "info",
 		SSHTimeout:             15,
 		EnableLocalPortForward: false,
-		DatabaseName:           "kube_jump",
+		DatabaseName:           "devops",
 		DatabaseAddress:        "127.0.0.1",
 		DatabaseUser:           "root",
 		DatabasePort:           3306,
-		DatabasePassword:       "Dc@123",
+		DatabasePassword:       "root",
 		LocalCachePath:         localCachePath,
 		AssetLoadPolicy:        "all",
 
