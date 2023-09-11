@@ -11,3 +11,7 @@ type BaseModel struct {
 	UpdatedAt time.Time
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
+
+type UniqKeyGenerator interface {
+	ClientUniqKey() string
+}

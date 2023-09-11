@@ -33,6 +33,7 @@ type ClusterConfig struct {
 	BearerToken   string `json:"bearer_token" gorm:"type:text;not null" binding:"required"`
 	LastApply     string `json:"-" gorm:"type:text"`
 	ConfigVersion int    `json:"config_version" gorm:"default:0" binding:"required"`
+	UniqKey       string `gorm:"not null; type:varchar(255); uniqueIndex:idx_uniq"`
 }
 
 func (c *ClusterConfig) ClientUniqKey() string {
@@ -88,22 +89,22 @@ func (c *Namespace) TableName() string {
 
 type PodRepo interface {
 	CreateOrUpdatePod(_ context.Context, pod *Pod) error
-	DeletePodByNameAndNamespace(_ context.Context, name, ns string, id uint) error
+	DeletePodByNameAndNamespace(_ context.Context, name, ns string, key string) error
 	ListPodsWithPreLoadCluster(_ context.Context, filter *Pod, sortBy string) ([]*Pod, error)
-	PreloadPods(_ context.Context, filter *Pod, reqParam *PaginationParam) ([]*Pod, error)
-	CountPods(_ context.Context, filter *Pod, reqParam *PaginationParam) (int, error)
+	PreloadPodsWithPager(_ context.Context, filter *Pod, reqParam *PaginationParam) ([]*Pod, int, error)
+	//CountPods(_ context.Context, filter *Pod, reqParam *PaginationParam) (int, error)
 }
 
 type Pod struct {
 	BaseModel
-	PodName      string         `gorm:"not null;type:varchar(256);uniqueIndex:idx_namespace_pod_name_cluster_ref"`
-	Namespace    string         `gorm:"not null;type:varchar(256);uniqueIndex:idx_namespace_pod_name_cluster_ref"`
-	PodIP        string         `gorm:"pod_ip;varchar(15)"`
-	Status       string         `gorm:"type:varchar(28);not null"`
-	ClusterRef   uint           `gorm:"not null;uniqueIndex:idx_namespace_pod_name_cluster_ref"`
-	Cluster      *ClusterConfig `gorm:"foreignKey:ClusterRef"`
-	Containers   []*Container   `gorm:"foreignKey:PodRef;"`
-	ResourceKind string         `gorm:"-"`
+	PodName    string         `gorm:"not null;type:varchar(256);uniqueIndex:idx_namespace_pod_name_cluster_ref"`
+	Namespace  string         `gorm:"not null;type:varchar(256);uniqueIndex:idx_namespace_pod_name_cluster_ref"`
+	PodIP      string         `gorm:"pod_ip;varchar(15)"`
+	Status     string         `gorm:"type:varchar(28);not null"`
+	ClusterRef string         `gorm:"not null;uniqueIndex:idx_namespace_pod_name_cluster_ref"`
+	Cluster    *ClusterConfig `gorm:"foreignKey:ClusterRef;references:UniqKey"`
+	//Containers   []*Container   `gorm:"foreignKey:PodRef"`
+	ResourceKind string `gorm:"-"`
 }
 
 func (c *Pod) TableName() string {

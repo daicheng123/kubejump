@@ -31,24 +31,24 @@ type kubeHandlerServices struct {
 	eventQueue       *list.SafeListLimited
 }
 
-func (srv *kubeHandlerServices) newHandler(kind string, clusterID uint) *kubeHandler {
+func (srv *kubeHandlerServices) newHandler(kind string, uniqKey string) *kubeHandler {
 	handler := &kubeHandler{
-		clusterID:           clusterID,
+		clusterUniqKey:      uniqKey,
 		resourceKind:        kind,
 		kubeHandlerServices: srv,
 	}
-	srv.handlers.Store(srv.buildKey(handler.resourceKind, handler.clusterID), handler)
+	srv.handlers.Store(srv.buildKey(handler.resourceKind, handler.clusterUniqKey), handler)
 	return handler
 }
 
-func (srv *kubeHandlerServices) buildKey(kind string, clusterID uint) string {
-	return fmt.Sprintf("%s_%d", kind, clusterID)
+func (srv *kubeHandlerServices) buildKey(kind string, uniqKey string) string {
+	return fmt.Sprintf("%s_%d", kind, uniqKey)
 }
 
-func (srv *kubeHandlerServices) loadHandler(kind string, clusterID uint) *kubeHandler {
+func (srv *kubeHandlerServices) loadHandler(kind string, uniqKey string) *kubeHandler {
 	var handler *kubeHandler
 	srv.handlers.Range(func(key, value any) bool {
-		if key == srv.buildKey(kind, clusterID) {
+		if key == srv.buildKey(kind, uniqKey) {
 			handler = value.(*kubeHandler)
 			return true
 		}
@@ -57,7 +57,7 @@ func (srv *kubeHandlerServices) loadHandler(kind string, clusterID uint) *kubeHa
 	return handler
 }
 
-func (srv *kubeHandlerServices) delHandler(kind string, clusterID uint) {
+func (srv *kubeHandlerServices) delHandler(kind string, clusterID string) {
 	srv.handlers.Delete(srv.buildKey(kind, clusterID))
 }
 
@@ -119,6 +119,7 @@ func (srv *kubeHandlerServices) handlePod(ctx context.Context, pe *podEvent) {
 		}); err != nil {
 			klog.Errorf("sync pod add or update event failed, err: %s", err.Error())
 		}
+		return
 	}
 
 	if err = retry.Retry(DEFAULT_RETRIES, DEFAULT_RETRIES_INTERVAL, func() error {
@@ -136,6 +137,7 @@ func (srv *kubeHandlerServices) handleNamespace(ctx context.Context, ne *nsEvent
 		}); err != nil {
 			klog.Errorf("sync namespace add or update event failed, err: %s", err.Error())
 		}
+		return
 	}
 
 	if err = retry.Retry(DEFAULT_RETRIES, DEFAULT_RETRIES_INTERVAL, func() error {
@@ -157,7 +159,7 @@ type nsEvent struct {
 
 type kubeHandler struct {
 	clusterUniqKey string // 区别事件所属集群
-	clusterID      uint
+	clusterName    string
 	resourceKind   string // 区别资源类型
 	*kubeHandlerServices
 }
@@ -171,7 +173,7 @@ func (kh *kubeHandler) sendEvent(obj interface{}, eventType string) {
 			Pod: &entity.Pod{
 				PodName:    pod.Name,
 				Namespace:  pod.Namespace,
-				ClusterRef: kh.clusterID,
+				ClusterRef: kh.clusterUniqKey,
 				//ClusterUniqKey: kh.clusterUniqKey,
 				ResourceKind: kh.resourceKind,
 				Status:       pods.PodStatus(pod),

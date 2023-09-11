@@ -22,6 +22,16 @@ type WrapperSession struct {
 	currentWin ssh.Window
 }
 
+func NewWrapperSession(sess ssh.Session) *WrapperSession {
+	w := &WrapperSession{
+		Sess:  sess,
+		mux:   new(sync.RWMutex),
+		winch: make(chan ssh.Window),
+	}
+	w.initial()
+	return w
+}
+
 func (w *WrapperSession) initReadPip() {
 	w.mux.Lock()
 	defer w.mux.Unlock()
@@ -114,14 +124,4 @@ func (w *WrapperSession) initial() {
 	w.closed = make(chan struct{})
 	w.initReadPip()
 	go w.readLoop()
-}
-
-func NewWrapperSession(sess ssh.Session) *WrapperSession {
-	w := &WrapperSession{
-		Sess:  sess,
-		mux:   new(sync.RWMutex),
-		winch: make(chan ssh.Window),
-	}
-	w.initial()
-	return w
 }

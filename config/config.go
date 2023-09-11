@@ -124,7 +124,7 @@ func getDefaultConfig() Config {
 		ClientAliveInterval: 120,
 		// terminal 终端配置
 		TerminalConf: &entity.TerminalConfig{
-			AssetListPageSize: "10",
+			AssetListPageSize: "20",
 			AssetListSortBy:   "ClusterName",
 			MaxIdleTime:       60,
 		},

@@ -83,7 +83,7 @@ type DirectHandler struct {
 	opts        *directOpt
 	jmsService  *service.JMService
 
-	assets []entity.Asset
+	assets []*entity.Asset
 
 	selectedSystemUser *entity.User
 
@@ -96,7 +96,7 @@ func NewDirectHandler(session ssh.Session, jmsService *service.JMService, optSet
 		optSetters[i](opts)
 	}
 	var (
-		selectedAssets []entity.Asset
+		selectedAssets []*entity.Asset
 		err            error
 		wrapperSess    *WrapperSession
 		term           *terminal.Terminal

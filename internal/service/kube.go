@@ -41,14 +41,14 @@ func NewKubernetesService(podRepo entity.PodRepo, nsRepo entity.NamespaceRepo) (
 }
 
 func (ks *KubernetesService) AddSyncResourceToStore(informerKind string, kconfig *entity.ClusterConfig) (err error) {
-	handler := ks.kubeHandlerServices.newHandler(informerKind, kconfig.ID)
+	handler := ks.kubeHandlerServices.newHandler(informerKind, kconfig.UniqKey)
 	ks.informerFactory, err = ks.informerFactory.AddInformer(informerKind, handler, kconfig)
 	return err
 }
 
 func (ks *KubernetesService) DelSyncResourceToStore(informerKind string, kconfig *entity.ClusterConfig) {
 	ks.informerFactory = ks.informerFactory.DelInformer(informerKind, kconfig)
-	ks.kubeHandlerServices.delHandler(informerKind, kconfig.ID)
+	ks.kubeHandlerServices.delHandler(informerKind, kconfig.UniqKey)
 }
 
 func (ks *KubernetesService) ReloadSyncResourceToStore(informerKind string, kconfig *entity.ClusterConfig) error {

@@ -13,7 +13,7 @@ type Asset struct {
 
 type assetSortBy func(asset1, asset2 *Asset) bool
 
-func (by assetSortBy) Sort(nodes []Asset) {
+func (by assetSortBy) Sort(nodes []*Asset) {
 	nodeSorter := &AssetSorter{
 		assets: nodes,
 		sortBy: by,
@@ -23,7 +23,7 @@ func (by assetSortBy) Sort(nodes []Asset) {
 }
 
 type AssetSorter struct {
-	assets []Asset
+	assets []*Asset
 	sortBy func(node1, node2 *Asset) bool
 }
 
@@ -36,13 +36,21 @@ func (a *AssetSorter) Swap(i, j int) {
 }
 
 func (a *AssetSorter) Less(i, j int) bool {
-	return a.sortBy(&a.assets[i], &a.assets[j])
+	return a.sortBy(a.assets[i], a.assets[j])
 }
 
 func clusterSort(asset1, asset2 *Asset) bool {
 	return asset1.ClusterName < asset2.ClusterName
 }
 
-func SortByClusterName(assets []Asset) {
+func sortIPSort(asset1, asset2 *Asset) bool {
+	return asset1.PodIP < asset2.PodIP
+}
+
+func SortByClusterName(assets []*Asset) {
 	assetSortBy(clusterSort).Sort(assets)
+}
+
+func SortByAssetIP(assets []*Asset) {
+	assetSortBy(sortIPSort).Sort(assets)
 }

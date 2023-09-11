@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"github.com/daicheng123/kubejump/config"
 	"github.com/daicheng123/kubejump/internal/entity"
@@ -35,15 +36,15 @@ type UserSelectHandler struct {
 
 	loadingPolicy dataSource
 	currentType   selectType
-	searchKeys    []string
+	searchKey     string
 
 	hasPre  bool
 	hasNext bool
 
-	allLocalData []entity.Asset
+	allLocalData []*entity.Asset
 
-	//selectedNode  model.Node
-	currentResult []entity.Asset
+	selectedPodAsset *entity.Asset
+	currentResult    []*entity.Asset
 
 	*pageInfo
 }
@@ -53,35 +54,31 @@ func (u *UserSelectHandler) HasNext() bool {
 }
 
 func (u *UserSelectHandler) MoveNextPage() {
+	fmt.Println("MoveNextPageMoveNextPageMoveNextPageMoveNextPageMoveNextPage")
 	if u.HasNext() {
 		offset := u.CurrentOffSet()
 		newPageSize := getPageSize(u.h.term, config.GetConf().TerminalConf)
-		fmt.Printf("offset: %d, newPageSize: %d, \n", offset, newPageSize)
-		//u.currentResult = u.Retrieve(newPageSize, offset, u.searchKeys...)
+		u.currentResult = u.Retrieve(newPageSize, offset, u.searchKey)
 	}
-	//u.DisplayCurrentResult()
+	u.DisplayCurrentResult()
 }
 
-func (u *UserSelectHandler) SetSelectType(s selectType) {
+func (u *UserSelectHandler) SetSelectPrepare() {
 	u.SetLoadPolicy(loadingFromRemote) // default remote
-	switch s {
-	case TypeAsset:
-		switch u.h.assetLoadPolicy {
-		case "all":
-			u.SetLoadPolicy(loadingFromLocal)
-			u.AutoCompletion()
-		}
-		u.h.term.SetPrompt("[Pods]> ")
-	}
-	u.currentType = s
+	//u.AutoCompletion()
+	u.h.term.SetPrompt("[Pods]> ")
+	//u.currentType = s
 }
 
 func (u *UserSelectHandler) SetLoadPolicy(policy dataSource) {
 	u.loadingPolicy = policy
 }
 
-func (u *UserSelectHandler) SetAllLocalAssetData(assets []entity.Asset) {
-	u.allLocalData = make([]entity.Asset, len(assets))
+func (u *UserSelectHandler) SetAllLocalAssetData(assets []*entity.Asset) {
+	//u.allLocalData = make([]*entity.Asset, len(assets))
+
+	u.currentResult = make([]*entity.Asset, len(assets))
+
 	copy(u.allLocalData, assets)
 }
 
@@ -90,13 +87,14 @@ func (u *UserSelectHandler) AutoCompletion() {
 	suggests := make([]string, 0, len(assets))
 	klog.Infof("[AutoCompletion] currentType %d", u.currentType)
 	for _, a := range assets {
-		switch u.currentType {
-		case TypeAsset, TypeNodeAsset:
-			suggests = append(suggests, a.PodName)
-		default:
-			//suggests = append(suggests, a.ClusterName)
-			suggests = append(suggests, a.PodName)
-		}
+		suggests = append(suggests, a.PodName)
+		//switch u.currentType {
+		//case TypeAsset, TypeNodeAsset:
+		//	suggests = append(suggests, a.PodName)
+		//default:
+		//	//suggests = append(suggests, a.ClusterName)
+		//	suggests = append(suggests, a.PodName)
+		//}
 	}
 	sort.Strings(suggests)
 	klog.Infof("[AutoCompletion] suggestions: %#v", suggests)
@@ -108,11 +106,12 @@ func (u *UserSelectHandler) AutoCompletion() {
 			sugs := utils.FilterPrefix(suggests, line)
 			if len(sugs) >= 1 {
 				commonPrefix := utils.LongestCommonPrefix(sugs)
-				switch u.currentType {
-				case TypeAsset, TypeNodeAsset:
-					fmt.Fprintf(u.h.term, "%s%s\n%s\n", "[Pods]> ", line, utils.Pretty(sugs, termWidth))
-
-				}
+				fmt.Fprintf(u.h.term, "%s%s\n%s\n", "[Pods]> ", line, utils.Pretty(sugs, termWidth))
+				//switch u.currentType {
+				//case TypeAsset, TypeNodeAsset:
+				//	fmt.Fprintf(u.h.term, "%s%s\n%s\n", "[Pods]> ", line, utils.Pretty(sugs, termWidth))
+				//
+				//}
 				return commonPrefix, len(commonPrefix), true
 			}
 		}
@@ -121,26 +120,71 @@ func (u *UserSelectHandler) AutoCompletion() {
 	}
 }
 
-// TODO: retrieveFromRemote
-func (u *UserSelectHandler) Retrieve(pageSize, offset int, searches ...string) []entity.Asset {
-	switch u.loadingPolicy {
-	case loadingFromLocal:
-		return u.retrieveFromLocal(pageSize, offset, searches...)
-	default:
-		return u.retrieveFromLocal(pageSize, offset, searches...)
-	}
+func (u *UserSelectHandler) Retrieve(pageSize, offset int, search string) []*entity.Asset {
+	return u.retrieveFromRemote(pageSize, offset, search)
+
 }
 
-func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, searches ...string) []entity.Asset {
+func (u *UserSelectHandler) retrieveFromRemote(pageSize, offset int, search string) []*entity.Asset {
+	var order string
+
+	order = "cluster_ref desc"
+	reqParam := &entity.PaginationParam{
+		PageSize: pageSize,
+		Offset:   offset,
+		Search:   search,
+		SortBy:   order,
+		IsActive: true,
+	}
+	resp, err := u.h.jmsService.ListPodsFromStorage(context.Background(), reqParam)
+
+	if err != nil {
+		klog.Errorf("Get user perm assets failed: %s", err.Error())
+	}
+
+	return u.updateRemotePageData(reqParam, resp)
+	//
+}
+
+func (u *UserSelectHandler) updateRemotePageData(reqParam *entity.PaginationParam, res *entity.PaginationResponse) []*entity.Asset {
+
+	u.hasNext, u.hasPre = false, false
+	total := res.Total
+	currentPageSize := reqParam.PageSize
+	currentData := res.Data
+
+	if currentPageSize < 0 || currentPageSize == PAGESIZEALL {
+		currentPageSize = len(res.Data)
+	}
+
+	if len(res.Data) > currentPageSize {
+		currentData = currentData[:currentPageSize]
+	}
+	currentOffset := reqParam.Offset + len(currentData)
+
+	u.updatePageInfo(currentPageSize, total, currentOffset)
+
+	if u.currentPage > 1 {
+		u.hasPre = true
+	}
+	if u.currentPage < u.totalPage {
+		u.hasNext = true
+	}
+	fmt.Printf("[updateRemotePageData] hasNext:%t, hasPre:%t,currentOffset:%d,currentPageSize:%d\n",
+		u.hasNext, u.hasPre, currentOffset, currentPageSize)
+	return currentData
+}
+
+func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, search string) []*entity.Asset {
 	if pageSize <= 0 {
 		pageSize = PAGESIZEALL
 	}
 	if offset < 0 {
 		offset = 0
 	}
-	searchResult := u.searchLocalAsset(searches...)
+	searchResult := u.searchLocalAsset(search)
 	var (
-		totalData       []entity.Asset
+		totalData       []*entity.Asset
 		total           int
 		currentOffset   int
 		currentPageSize int
@@ -172,10 +216,10 @@ func (u *UserSelectHandler) retrieveFromLocal(pageSize, offset int, searches ...
 	return currentData
 }
 
-func (u *UserSelectHandler) retrieveLocal(searches ...string) []entity.Asset {
+func (u *UserSelectHandler) retrieveLocal(search string) []*entity.Asset {
 	klog.Info("Retrieve default local data type: Asset")
 
-	return u.searchLocalAsset(searches...)
+	return u.searchLocalAsset(search)
 	//switch u.currentType {
 	//case TypeDatabase:
 	//	return u.searchLocalDatabase(searches...)
@@ -191,34 +235,34 @@ func (u *UserSelectHandler) retrieveLocal(searches ...string) []entity.Asset {
 	//}
 }
 
-func (u *UserSelectHandler) searchLocalAsset(searches ...string) []entity.Asset {
+func (u *UserSelectHandler) searchLocalAsset(search string) []*entity.Asset {
 	fields := map[string]struct{}{
 		"ClusterName": {},
 		"Namespace":   {},
 		"PodName":     {},
 		"PodIp":       {},
 	}
-	return u.searchLocalFromFields(fields, searches...)
+	return u.searchLocalFromFields(fields, search)
 }
 
-func (u *UserSelectHandler) searchLocalFromFields(fields map[string]struct{}, searches ...string) []entity.Asset {
-	items := make([]entity.Asset, 0, len(u.allLocalData))
+func (u *UserSelectHandler) searchLocalFromFields(fields map[string]struct{}, search string) []*entity.Asset {
+	items := make([]*entity.Asset, 0, len(u.allLocalData))
 	for i := range u.allLocalData {
-		if containKeysInMapItemFields(u.allLocalData[i], fields, searches...) {
+		if containKeysInMapItemFields(u.allLocalData[i], fields, search) {
 			items = append(items, u.allLocalData[i])
 		}
 	}
 	return items
 }
 
-func containKeysInMapItemFields(item entity.Asset, searchFields map[string]struct{}, matchedKeys ...string) bool {
+func containKeysInMapItemFields(item *entity.Asset, searchFields map[string]struct{}, matchedKey string) bool {
 
-	if len(matchedKeys) == 0 {
+	if len(matchedKey) == 0 {
 		return true
 	}
-	if len(matchedKeys) == 1 && matchedKeys[0] == "" {
-		return true
-	}
+	//if len(matchedKey) == 1 && matchedKeys[0] == "" {
+	//	return true
+	//}
 
 	v := reflect.ValueOf(item)
 	for i := 0; i < v.NumField(); i++ {
@@ -227,10 +271,8 @@ func containKeysInMapItemFields(item entity.Asset, searchFields map[string]struc
 			if field.Name == key {
 				switch field.Type.Kind() {
 				case reflect.String:
-					for j, _ := range matchedKeys {
-						if strings.Contains(v.Field(i).String(), matchedKeys[j]) {
-							return true
-						}
+					if strings.Contains(v.Field(i).String(), matchedKey) {
+						return true
 					}
 				}
 			}
@@ -243,24 +285,26 @@ func containKeysInMapItemFields(item entity.Asset, searchFields map[string]struc
 func (u *UserSelectHandler) Search(key string) {
 	newPageSize := getPageSize(u.h.term, config.GetConf().TerminalConf)
 	u.currentResult = u.Retrieve(newPageSize, 0, key)
-	u.searchKeys = []string{key}
+	u.searchKey = key
 	u.DisplayCurrentResult()
 }
 
 func (u *UserSelectHandler) DisplayCurrentResult() {
-	searchHeader := fmt.Sprintf("Search: %s", strings.Join(u.searchKeys, " "))
-	switch u.currentType {
-	case TypeAsset:
-		u.displayAssetResult(searchHeader)
-	default:
-		klog.Error("Display unknown type")
-	}
+	searchHeader := fmt.Sprintf("Search: %s", u.searchKey)
+
+	//switch u.currentType {
+	//case TypeAsset:
+	//	u.displayAssetResult(searchHeader)
+	//default:
+	//	klog.Error("Display unknown type")
+	//}
+	u.displayAssetResult(searchHeader)
 }
 
 func (u *UserSelectHandler) displayAssetResult(searchHeader string) {
 	term := u.h.term
 	if len(u.currentResult) == 0 {
-		noAssets := "No Assets"
+		noAssets := "No Pod Assets"
 		utils.IgnoreErrWriteString(term, utils.WrapperString(noAssets, utils.Red))
 		utils.IgnoreErrWriteString(term, utils.CharNewLine)
 		utils.IgnoreErrWriteString(term, utils.WrapperString(searchHeader, utils.Green))
@@ -270,13 +314,18 @@ func (u *UserSelectHandler) displayAssetResult(searchHeader string) {
 	u.displaySortedAssets(searchHeader)
 }
 
+func (u *UserSelectHandler) SearchAgain(key string) {
+	u.searchKey = key
+	newPageSize := getPageSize(u.h.term, u.h.terminalConf)
+	u.currentResult = u.Retrieve(newPageSize, 0, u.searchKey)
+	u.DisplayCurrentResult()
+}
+
 func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 	assetListSortBy := config.GetConf().TerminalConf.AssetListSortBy
 	switch assetListSortBy {
-	//case "ip":
-	//	sortedAsset := IPAssetList(u.currentResult)
-	//	sort.Sort(sortedAsset)
-	//	u.currentResult = sortedAsset
+	case "ip":
+		entity.SortByAssetIP(u.currentResult)
 	default:
 		entity.SortByClusterName(u.currentResult)
 	}
@@ -294,6 +343,7 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 
 	Labels := []string{idLabel, clusterLabel, nsLabel, podName, podIPLabel}
 	fields := []string{"ID", "ClusterName", "Namespace", "PodName", "PodIP"}
+
 	data := make([]map[string]string, len(u.currentResult))
 	for i, j := range u.currentResult {
 		row := make(map[string]string)
@@ -316,11 +366,11 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 		Fields: fields,
 		Labels: Labels,
 		FieldsSize: map[string][3]int{
-			"ID":          {0, 0, 5},
-			"ClusterName": {0, 40, 0},
-			"Namespace":   {0, 15, 40},
-			"PodName":     {0, 0, 0},
-			"PodIP":       {0, 0, 0},
+			"ID":           {0, 0, 5},
+			"cluster_name": {0, 40, 0},
+			"namespace":    {0, 15, 40},
+			"pod_name":     {0, 0, 0},
+			"pod_ip":       {0, 0, 0},
 		},
 		Data:        data,
 		TotalSize:   w,
@@ -340,8 +390,11 @@ func (u *UserSelectHandler) displaySortedAssets(searchHeader string) {
 	utils.IgnoreErrWriteString(term, utils.CharNewLine)
 }
 
-func convertAssetItemToRow(item entity.Asset, fields map[string]string, row map[string]string) map[string]string {
+func convertAssetItemToRow(item *entity.Asset, fields map[string]string, row map[string]string) map[string]string {
 	v := reflect.ValueOf(item)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
 	for i := 0; i < v.NumField(); i++ {
 		for k, _ := range fields {
 			field := v.Type().Field(i)
@@ -368,14 +421,18 @@ func (u *UserSelectHandler) SearchOrProxy(line string) {
 	}
 }
 
-func (u *UserSelectHandler) Proxy(target entity.Asset) {
+func (u *UserSelectHandler) HasPrev() bool {
+	return u.hasPre
+}
+
+func (u *UserSelectHandler) Proxy(target *entity.Asset) {
 	//targetId := target.ID
 	if target.PodStatus != "Running" {
 		msg := "The pod is inactive"
 		_, _ = u.h.term.Write([]byte(msg))
 		return
 	}
-	//u.proxyAsset(asset)
+	u.proxyAsset(target)
 
 	//lang := i18n.NewLang(u.h.i18nLang)
 	//switch u.currentType {
@@ -402,4 +459,9 @@ func (u *UserSelectHandler) Proxy(target entity.Asset) {
 	//default:
 	//	logger.Errorf("Select unknown type for target id %s", targetId)
 	//}
+}
+
+func (u *UserSelectHandler) proxyAsset(asset *entity.Asset) {
+	u.selectedPodAsset = asset
+
 }

@@ -42,7 +42,7 @@ func (jms *JMService) ListAssetByIP(ctx context.Context, podIP string) ([]*entit
 	return nil, nil
 }
 
-func (jms *JMService) ListPodAsset(ctx context.Context, podIP string) ([]entity.Asset, error) {
+func (jms *JMService) ListPodAsset(ctx context.Context, podIP string) ([]*entity.Asset, error) {
 	filter := &entity.Pod{
 		PodIP: podIP,
 	}
@@ -53,6 +53,26 @@ func (jms *JMService) ListPodAsset(ctx context.Context, podIP string) ([]entity.
 		return nil, err
 	}
 	return utils.PodsToJumpAssets(podList), err
+}
+
+func (jms *JMService) ListPodsFromStorage(ctx context.Context, param *entity.PaginationParam) (resp *entity.PaginationResponse, err error) {
+	var (
+		filter = &entity.Pod{}
+		count  int
+		pods   []*entity.Pod
+	)
+
+	pods, count, err = jms.podRepo.PreloadPodsWithPager(ctx, filter, param)
+	if err != nil {
+		return nil, err
+	}
+	resp = &entity.PaginationResponse{
+		Data:            utils.PodsToJumpAssets(pods),
+		HasNextPage:     true,
+		HasPreviousPage: true,
+	}
+	resp.Total = count
+	return resp, err
 }
 
 // ApplyK8sCluster create or update kubernetes cluster object

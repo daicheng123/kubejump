@@ -3,14 +3,15 @@ package entity
 type PaginationParam struct {
 	PageSize int
 	Offset   int
-	Searches map[string]interface{}
+	Search   string
 	SortBy   string
+	IsActive bool
 	//Refresh  bool
 }
 
 type PaginationResponse struct {
-	Total       int
-	NextURL     string
-	PreviousURL string
-	Data        []Asset
+	Total           int
+	HasNextPage     bool
+	HasPreviousPage bool
+	Data            []*Asset
 }

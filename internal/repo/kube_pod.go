@@ -7,6 +7,7 @@ import (
 	"github.com/daicheng123/kubejump/internal/entity"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"strconv"
 	"sync"
 )
 
@@ -22,7 +23,7 @@ func (pr *PodRepo) CreateOrUpdatePod(_ context.Context, pod *entity.Pod) error {
 	conflictKeys := []clause.Column{
 		{Name: "pod_name"},
 		{Name: "namespace"},
-		{Name: "cluster_uniq_key"},
+		{Name: "cluster_ref"},
 	}
 	tx := pr.data.DB.Session(&gorm.Session{}).Clauses(clause.OnConflict{
 		UpdateAll: true,
@@ -30,7 +31,10 @@ func (pr *PodRepo) CreateOrUpdatePod(_ context.Context, pod *entity.Pod) error {
 	})
 	return tx.Create(pod).Error
 }
+func validConvertNum(str string) (int64, error) {
+	return strconv.ParseInt(str, 10, 64)
 
+}
 func (pr *PodRepo) ListPodsWithPreLoadCluster(_ context.Context, filter *entity.Pod, sortBy string) ([]*entity.Pod, error) {
 	pr.lock.Lock()
 	defer pr.lock.Unlock()
@@ -43,51 +47,47 @@ func (pr *PodRepo) ListPodsWithPreLoadCluster(_ context.Context, filter *entity.
 	db := pr.data.DB.Session(&gorm.Session{}).
 		Model(filter).
 		Preload("Cluster", IsActive(true)).
-		//Scopes(IsActive(true)).
 		Where(filter).
 		Scopes(OrderBy(sortBy)).
 		Find(&podList)
-
 	return podList, db.Error
 }
 
-func (pr *PodRepo) PreloadPods(_ context.Context, filter *entity.Pod, reqParam *entity.PaginationParam) ([]*entity.Pod, error) {
+func (pr *PodRepo) PreloadPodsWithPager(_ context.Context, filter *entity.Pod, reqParam *entity.PaginationParam) ([]*entity.Pod, int, error) {
+	var count int64
 	if filter == nil {
 		filter = &entity.Pod{}
 	}
 	result := make([]*entity.Pod, 0)
 	db := pr.data.DB.Session(&gorm.Session{}).
 		Model(&entity.Pod{}).
-		Preload("Cluster", IsActive(true)).
+		Preload("Cluster", IsActive(reqParam.IsActive)).
 		Where(filter).
-		Scopes(Paginate(reqParam.PageSize, reqParam.Offset), SearchBy(reqParam.Searches), OrderBy(reqParam.SortBy)).
-		Find(&result)
+		Scopes(
+			OrderBy(reqParam.SortBy),
+			PaginatePods(reqParam.PageSize, reqParam.Offset),
+			SearchPodBy(reqParam.Search),
+		)
 
-	return result, db.Error
-}
-
-func (pr *PodRepo) CountPods(_ context.Context, filter *entity.Pod, reqParam *entity.PaginationParam) (int, error) {
-	var count int64
-
-	if filter == nil {
-		filter = new(entity.Pod)
+	db.Count(&count)
+	if db.Error != nil {
+		return result, 0, db.Error
 	}
-	db := pr.data.DB.Session(&gorm.Session{}).Model(filter).Scopes(
-		OrderBy(reqParam.SortBy),
-		SearchBy(reqParam.Searches)).
-		Count(&count)
-	return int(count), db.Error
+
+	db.Find(&result)
+
+	return result, int(count), db.Error
 }
 
-func (pr *PodRepo) DeletePodByNameAndNamespace(_ context.Context, name, ns string, id uint) error {
-	if name == "" || id == 0 || ns == "" {
+func (pr *PodRepo) DeletePodByNameAndNamespace(_ context.Context, name, ns, cluster string) error {
+	if name == "" || cluster == "" || ns == "" {
 		return errors.New("name or uniqKey or namespace is Nil")
 	}
 
 	filter := &entity.Pod{
 		PodName:    name,
 		Namespace:  ns,
-		ClusterRef: id,
+		ClusterRef: cluster,
 	}
 
 	pr.lock.Lock()
