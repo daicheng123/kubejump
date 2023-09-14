@@ -14,7 +14,8 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/spf13/viper v1.15.0
 	github.com/toolkits/pkg v1.3.4
-	golang.org/x/crypto v0.9.0
+	golang.org/x/crypto v0.13.0
+	golang.org/x/text v0.13.0
 	gorm.io/driver/mysql v1.4.7
 	gorm.io/gorm v1.24.6
 	k8s.io/api v0.26.3
@@ -57,6 +58,7 @@ require (
 	github.com/mailru/easyjson v0.7.6 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
+	github.com/mediocregopher/radix/v3 v3.8.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/moby/spdystream v0.2.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
@@ -75,10 +77,10 @@ require (
 	golang.org/x/arch v0.3.0 // indirect
 	golang.org/x/net v0.10.0 // indirect
 	golang.org/x/oauth2 v0.0.0-20221014153046-6fdb5e3db783 // indirect
-	golang.org/x/sys v0.8.0 // indirect
-	golang.org/x/term v0.8.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
+	golang.org/x/sys v0.12.0 // indirect
+	golang.org/x/term v0.12.0 // indirect
 	golang.org/x/time v0.1.0 // indirect
+	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect

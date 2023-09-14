@@ -6,7 +6,9 @@ import (
 	"github.com/daicheng123/kubejump/config"
 	"github.com/daicheng123/kubejump/internal/entity"
 	"github.com/daicheng123/kubejump/pkg/common"
+	"github.com/daicheng123/kubejump/pkg/proxy"
 	"github.com/daicheng123/kubejump/pkg/utils"
+	"github.com/toolkits/pkg/logger"
 	"k8s.io/klog/v2"
 	"reflect"
 	"sort"
@@ -54,7 +56,6 @@ func (u *UserSelectHandler) HasNext() bool {
 }
 
 func (u *UserSelectHandler) MoveNextPage() {
-	fmt.Println("MoveNextPageMoveNextPageMoveNextPageMoveNextPageMoveNextPage")
 	if u.HasNext() {
 		offset := u.CurrentOffSet()
 		newPageSize := getPageSize(u.h.term, config.GetConf().TerminalConf)
@@ -85,7 +86,6 @@ func (u *UserSelectHandler) SetAllLocalAssetData(assets []*entity.Asset) {
 func (u *UserSelectHandler) AutoCompletion() {
 	assets := u.Retrieve(0, 0, "")
 	suggests := make([]string, 0, len(assets))
-	klog.Infof("[AutoCompletion] currentType %d", u.currentType)
 	for _, a := range assets {
 		suggests = append(suggests, a.PodName)
 		//switch u.currentType {
@@ -97,7 +97,6 @@ func (u *UserSelectHandler) AutoCompletion() {
 		//}
 	}
 	sort.Strings(suggests)
-	klog.Infof("[AutoCompletion] suggestions: %#v", suggests)
 	u.h.term.AutoCompleteCallback = func(line string, pos int, key rune) (newLine string, newPos int, ok bool) {
 		//if key == 9 {
 		klog.Infof("line %s, pos %d,key %d, currenType: %d\n", line, pos, key, u.currentType)
@@ -170,8 +169,10 @@ func (u *UserSelectHandler) updateRemotePageData(reqParam *entity.PaginationPara
 	if u.currentPage < u.totalPage {
 		u.hasNext = true
 	}
-	fmt.Printf("[updateRemotePageData] hasNext:%t, hasPre:%t,currentOffset:%d,currentPageSize:%d\n",
-		u.hasNext, u.hasPre, currentOffset, currentPageSize)
+
+	if len(currentData) < currentPageSize {
+		u.pageSize = len(currentData)
+	}
 	return currentData
 }
 
@@ -419,6 +420,25 @@ func (u *UserSelectHandler) SearchOrProxy(line string) {
 			return
 		}
 	}
+	newPageSize := getPageSize(u.h.term, u.h.terminalConf)
+	currentResult := u.Retrieve(newPageSize, 0, line)
+	u.currentResult = currentResult
+	u.searchKey = line
+	if len(u.currentResult) == 1 {
+		u.Proxy(currentResult[0])
+		return
+	}
+	// 资产类型, 返回结果 ip 或者 hostname 与 key 完全一样则直接登录
+	//switch u.currentType {
+	//case TypeAsset:
+	//	if strings.TrimSpace(key) != "" {
+	//		if ret, ok := getUniqueAssetFromKey(key, currentResult); ok {
+	//			u.Proxy(ret)
+	//			return
+	//		}
+	//	}
+	//}
+	u.DisplayCurrentResult()
 }
 
 func (u *UserSelectHandler) HasPrev() bool {
@@ -433,35 +453,29 @@ func (u *UserSelectHandler) Proxy(target *entity.Asset) {
 		return
 	}
 	u.proxyAsset(target)
-
-	//lang := i18n.NewLang(u.h.i18nLang)
-	//switch u.currentType {
-	//case TypeAsset, TypeNodeAsset:
-	//	asset, err := u.h.jmsService.GetAssetById(targetId)
-	//	if err != nil || asset.ID == 0 {
-	//		klog.Errorf("Select asset %s not found", targetId)
-	//		return
-	//	}
-	//	if !asset.IsActive {
-	//		logger.Debugf("Select asset %s is inactive", targetId)
-	//		msg := lang.T("The asset is inactive")
-	//		_, _ = u.h.term.Write([]byte(msg))
-	//		return
-	//	}
-	//	u.proxyAsset(asset)
-	//case TypeK8s, TypeDatabase:
-	//	app, err := u.h.jmsService.GetApplicationById(targetId)
-	//	if err != nil {
-	//		logger.Errorf("Select application %s err: %s", targetId, err)
-	//		return
-	//	}
-	//	u.proxyApp(app)
-	//default:
-	//	logger.Errorf("Select unknown type for target id %s", targetId)
-	//}
 }
 
 func (u *UserSelectHandler) proxyAsset(asset *entity.Asset) {
 	u.selectedPodAsset = asset
+
+	proxyOpts := make([]proxy.ConnectionOption, 0, 10)
+	containerInfo := &proxy.ContainerInfo{
+		Namespace: asset.Namespace,
+		PodName:   asset.PodName,
+		CLuster:   asset.Cluster,
+	}
+	proxyOpts = append(proxyOpts, proxy.ConnectContainer(containerInfo))
+
+	authInfo := &entity.ConnectInfo{
+		User:  u.user,
+		Asset: asset,
+	}
+	proxyOpts = append(proxyOpts, proxy.ConnectTokenAuthInfo(authInfo))
+	srv, err := proxy.NewProxyServer(u.h.sess, u.h.jmsService, proxyOpts...)
+	if err != nil {
+		logger.Errorf("create proxy server err: %s", err)
+		return
+	}
+	srv.Proxy()
 
 }

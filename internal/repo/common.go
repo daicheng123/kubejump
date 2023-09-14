@@ -70,9 +70,9 @@ func SearchPodBy(search string) func(db *gorm.DB) *gorm.DB {
 		for _, field := range []string{"cluster_ref", "pod_name", "namespace", "pod_ip"} {
 			sql += fmt.Sprintf("%s like '%%%v%%' or ", field, search)
 		}
-		if num, err := validConvertNum(search); err == nil {
-			sql += fmt.Sprintf("%s like '%%%v%%' or ", "id", num)
-		}
+		//if num, err := validConvertNum(search); err == nil {
+		//	sql += fmt.Sprintf("%s like '%%%v%%' or ", "id", num)
+		//}
 		sql = strings.TrimSuffix(sql, " or ")
 		return db.Where(sql)
 	}

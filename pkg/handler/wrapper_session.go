@@ -2,10 +2,12 @@ package handler
 
 import (
 	"context"
+	"github.com/daicheng123/kubejump/pkg/exchange"
 	"github.com/daicheng123/kubejump/pkg/utils"
 	"github.com/gliderlabs/ssh"
 	"io"
 	"k8s.io/klog/v2"
+	"net"
 	"sync"
 )
 
@@ -20,6 +22,15 @@ type WrapperSession struct {
 
 	winch      chan ssh.Window
 	currentWin ssh.Window
+}
+
+func (w *WrapperSession) LoginFrom() string {
+	return "ST"
+}
+
+func (w *WrapperSession) RemoteAddr() string {
+	host, _, _ := net.SplitHostPort(w.Sess.RemoteAddr().String())
+	return host
 }
 
 func NewWrapperSession(sess ssh.Session) *WrapperSession {
@@ -124,4 +135,8 @@ func (w *WrapperSession) initial() {
 	w.closed = make(chan struct{})
 	w.initReadPip()
 	go w.readLoop()
+}
+
+func (w *WrapperSession) HandleRoomEvent(event string, msg *exchange.RoomMessage) {
+
 }

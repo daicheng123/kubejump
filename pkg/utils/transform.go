@@ -14,6 +14,7 @@ func PodsToJumpAssets(podInfo []*entity.Pod) []*entity.Asset {
 			PodName:     pod.PodName,
 			ClusterName: pod.Cluster.ClusterName,
 			PodStatus:   pod.Status,
+			Cluster:     pod.Cluster,
 		})
 	}
 	return assets

@@ -21,17 +21,23 @@ func (s *LabelField) UnmarshalJSON(bytes []byte) error {
 }
 
 type Session struct {
-	ID         string         `json:"id,omitempty"`
-	User       string         `json:"user"`
-	Asset      string         `json:"asset"`
-	Account    string         `json:"account"`
-	LoginFrom  LabelField     `json:"login_from,omitempty"`
-	RemoteAddr string         `json:"remote_addr"`
-	Protocol   string         `json:"protocol"`
-	DateStart  common.UTCTime `json:"date_start"`
-	OrgID      string         `json:"org_id"`
-	UserID     string         `json:"user_id"`
-	AssetID    string         `json:"asset_id"`
-	AccountID  string         `json:"account_id"`
-	Type       LabelField     `json:"type"`
+	ID         string     `json:"id,omitempty"`
+	User       string     `json:"user"`
+	Asset      string     `json:"asset"`
+	Account    string     `json:"account"`
+	LoginFrom  LabelField `json:"login_from,omitempty"`
+	RemoteAddr string     `json:"remote_addr"`
+	Protocol   string     `json:"protocol"`
+	//DateStart  common.UTCTime `json:"date_start"`
+	UserID    int        `json:"user_id"`
+	AssetID   int        `json:"asset_id"`
+	AccountID string     `json:"account_id"`
+	Type      LabelField `json:"type"`
 }
+
+const (
+	NORMALType  LabelField = "normal"
+	TUNNELType  LabelField = "tunnel"
+	COMMANDType LabelField = "command"
+	SFTPType    LabelField = "sftp"
+)

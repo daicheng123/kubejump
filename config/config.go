@@ -127,6 +127,7 @@ func getDefaultConfig() Config {
 			AssetListPageSize: "20",
 			AssetListSortBy:   "ClusterName",
 			MaxIdleTime:       60,
+			MaxSessionTime:    36000,
 		},
 	}
 }

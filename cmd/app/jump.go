@@ -9,6 +9,7 @@ import (
 	"github.com/daicheng123/kubejump/internal/service"
 	"github.com/daicheng123/kubejump/internal/sshd"
 	"github.com/daicheng123/kubejump/pkg/api"
+	"github.com/daicheng123/kubejump/pkg/exchange"
 	"k8s.io/klog/v2"
 	"os"
 	"os/signal"
@@ -57,8 +58,12 @@ func (j *JUMP) Stop() {
 	klog.Info("Quit The KubeJump")
 }
 
+func bootstrap() {
+	exchange.Initial()
+}
 func RunForever(confPath string) {
 	config.Setup(confPath)
+	bootstrap()
 	gracefulStop := make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT)
 

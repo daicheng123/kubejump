@@ -44,3 +44,10 @@ func WrapperWarn(text string) string {
 func IgnoreErrWriteString(writer io.Writer, s string) {
 	_, _ = io.WriteString(writer, s)
 }
+
+func IgnoreErrWriteWindowTitle(writer io.Writer, title string) {
+	// OSC Ps ; Pt BEL
+	// OSC Ps ; Pt ST
+	// Ps = 2  ⇒  Change Window Title to Pt.
+	_, _ = writer.Write([]byte(fmt.Sprintf("\x1b]2;%s\x07", title)))
+}

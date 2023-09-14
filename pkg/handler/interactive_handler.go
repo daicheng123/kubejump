@@ -36,8 +36,7 @@ type InteractiveHandler struct {
 	sess *WrapperSession
 	user *entity.User
 	term *terminal.Terminal
-
-	wg sync.WaitGroup
+	wg   sync.WaitGroup
 
 	jmsService *service.JMService
 

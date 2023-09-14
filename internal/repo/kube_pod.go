@@ -65,7 +65,6 @@ func (pr *PodRepo) PreloadPodsWithPager(_ context.Context, filter *entity.Pod, r
 		Where(filter).
 		Scopes(
 			OrderBy(reqParam.SortBy),
-			PaginatePods(reqParam.PageSize, reqParam.Offset),
 			SearchPodBy(reqParam.Search),
 		)
 
@@ -74,6 +73,7 @@ func (pr *PodRepo) PreloadPodsWithPager(_ context.Context, filter *entity.Pod, r
 		return result, 0, db.Error
 	}
 
+	db = db.Scopes(PaginatePods(reqParam.PageSize, reqParam.Offset))
 	db.Find(&result)
 
 	return result, int(count), db.Error
